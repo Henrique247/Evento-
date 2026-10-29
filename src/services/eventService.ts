@@ -467,7 +467,7 @@ export const eventService = {
       updated_at: new Date().toISOString(),
     };
 
-    // 1. Tentar Supabase se configurado
+    // 1. Tentar Supabase PostgreSQL
     if (isSupabaseConfigured()) {
       try {
         const { data, error } = await supabase
@@ -477,13 +477,13 @@ export const eventService = {
           .maybeSingle();
 
         if (!error && data) {
-          const created = data as EventModel;
-          saveLocalCustomEvent(created);
-          return { success: true, event: created };
+          return { success: true, event: data as EventModel };
         }
-        console.warn('Aviso: Inserção no Supabase falhou, a recorrer à API local:', error);
+        if (error) {
+          return { success: false, error: `Erro ao guardar evento na base de dados: ${error.message}` };
+        }
       } catch (err: any) {
-        console.warn('Aviso: Exceção na inserção Supabase, a recorrer à API local:', err);
+        return { success: false, error: `Falha de comunicação com o Supabase: ${err.message || 'Erro desconhecido'}` };
       }
     }
 
@@ -500,40 +500,32 @@ export const eventService = {
       });
       const data = await res.json();
       if (res.ok && data.event) {
-        saveLocalCustomEvent(data.event);
         return { success: true, event: data.event };
       }
-      console.warn('Aviso: API do servidor retornou erro ao criar evento:', data?.error);
-    } catch (err) {
-      console.warn('Aviso: Falha de rede na chamada à API /api/events:', err);
+      return { success: false, error: data.error || 'Erro ao criar evento no servidor.' };
+    } catch {
+      return { success: false, error: 'Base de dados indisponível. Não foi possível confirmar a gravação.' };
     }
-
-    // 3. Camada ultra-resiliente: Armazenar evento localmente para garantir que nunca se perde
-    const localEvent: EventModel = {
-      id: `evt-${Date.now()}`,
-      ...eventPayload,
-    };
-    saveLocalCustomEvent(localEvent);
-    return { success: true, event: localEvent };
   },
 
   async updateEvent(id: string, input: Partial<CreateEventInput> & { status?: EventModel['status'] }): Promise<{ success: boolean; event?: EventModel; error?: string }> {
-    let updatedEvent: EventModel | null = null;
-
     if (isSupabaseConfigured()) {
       try {
         const { data, error } = await supabase
           .from('events')
-          .update(input)
+          .update({ ...input, updated_at: new Date().toISOString() })
           .eq('id', id)
           .select()
           .maybeSingle();
 
         if (!error && data) {
-          updatedEvent = data as EventModel;
+          return { success: true, event: data as EventModel };
         }
-      } catch (err) {
-        console.warn('Aviso: Erro ao atualizar no Supabase:', err);
+        if (error) {
+          return { success: false, error: `Erro ao atualizar evento: ${error.message}` };
+        }
+      } catch (err: any) {
+        return { success: false, error: `Falha ao atualizar no Supabase: ${err.message}` };
       }
     }
 
@@ -549,56 +541,47 @@ export const eventService = {
       });
       const data = await res.json();
       if (res.ok && data.event) {
-        updatedEvent = data.event;
+        return { success: true, event: data.event };
       }
+      return { success: false, error: data.error || 'Erro ao atualizar evento no servidor.' };
     } catch {
-      // Ignora falha de rede
+      return { success: false, error: 'Falha de comunicação ao atualizar evento.' };
     }
-
-    // Atualizar na cache local
-    const existing = getLocalCustomEvents().find(e => e.id === id);
-    if (existing || updatedEvent) {
-      const merged: EventModel = {
-        ...(existing || updatedEvent!),
-        ...input,
-        updated_at: new Date().toISOString(),
-      } as EventModel;
-      saveLocalCustomEvent(merged);
-      return { success: true, event: merged };
-    }
-
-    if (updatedEvent) {
-      saveLocalCustomEvent(updatedEvent);
-      return { success: true, event: updatedEvent };
-    }
-
-    return { success: true };
   },
 
   async deleteEvent(id: string): Promise<{ success: boolean; error?: string }> {
     if (isSupabaseConfigured()) {
       try {
-        await supabase
+        const { error } = await supabase
           .from('events')
           .delete()
           .eq('id', id);
-      } catch {
-        // Ignora erro
+
+        if (error) {
+          return { success: false, error: error.message };
+        }
+        removeLocalCustomEvent(id);
+        return { success: true };
+      } catch (err: any) {
+        return { success: false, error: `Erro ao eliminar evento: ${err.message}` };
       }
     }
 
     const token = getStoredToken();
     try {
-      await fetch(`/api/events/${id}`, {
+      const res = await fetch(`/api/events/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, error: data.error || 'Erro ao eliminar evento.' };
+      }
+      removeLocalCustomEvent(id);
+      return { success: true };
     } catch {
-      // Ignora erro
+      return { success: false, error: 'Falha ao eliminar evento no servidor.' };
     }
-
-    removeLocalCustomEvent(id);
-    return { success: true };
   },
 
   async getEventAttendees(eventId: string): Promise<{ success: boolean; attendees?: Ticket[]; error?: string }> {
