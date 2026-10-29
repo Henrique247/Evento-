@@ -109,6 +109,52 @@ export const eventService = {
     return authService.signInWithPassword(email, password);
   },
 
+  async uploadEventImage(file: File, bucketName = 'event-assets'): Promise<{ success: boolean; url?: string; error?: string }> {
+    if (!isSupabaseConfigured()) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve({ success: true, url: e.target?.result as string });
+        reader.onerror = () => resolve({ success: false, error: 'Erro ao ler ficheiro localmente.' });
+        reader.readAsDataURL(file);
+      });
+    }
+
+    try {
+      const fileExt = file.name.split('.').pop() || 'jpg';
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+      const filePath = `events/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(bucketName)
+        .upload(filePath, file, { cacheControl: '3600', upsert: true });
+
+      if (uploadError) {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        return { success: true, url: dataUrl };
+      }
+
+      const { data } = supabase.storage.from(bucketName).getPublicUrl(filePath);
+      return { success: true, url: data.publicUrl };
+    } catch (err: any) {
+      try {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        return { success: true, url: dataUrl };
+      } catch {
+        return { success: false, error: err.message || 'Erro ao fazer upload da imagem.' };
+      }
+    }
+  },
+
   async register(data: RegisterInput): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
     return authService.signUp(data);
   },

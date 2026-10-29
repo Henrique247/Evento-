@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { AppRoute, EventModel, CreateEventInput, UserProfile } from '../types';
 import { ANGOLAN_PROVINCES } from '../data/mockData';
+import { eventService } from '../services/eventService';
 
 interface EventFormPageProps {
   currentUser: UserProfile | null;
@@ -148,7 +149,7 @@ export const EventFormPage: React.FC<EventFormPageProps> = ({
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
-  // Manipulador de upload do banner
+  // Manipulador de upload do banner (via Supabase Storage)
   const handleBannerFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -156,17 +157,22 @@ export const EventFormPage: React.FC<EventFormPageProps> = ({
     setUploadingBanner(true);
     setErrorMessage(null);
     try {
-      const dataUrl = await processImageFile(file, 1400, 800, 0.88);
-      setBannerUrl(dataUrl);
+      const res = await eventService.uploadEventImage(file);
+      if (res.success && res.url) {
+        setBannerUrl(res.url);
+      } else {
+        const dataUrl = await processImageFile(file, 1400, 800, 0.88);
+        setBannerUrl(dataUrl);
+      }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Falha ao processar o ficheiro do banner.');
+      setErrorMessage(err.message || 'Falha ao processar e carregar o banner.');
     } finally {
       setUploadingBanner(false);
       if (e.target) e.target.value = '';
     }
   };
 
-  // Manipulador de upload do logótipo
+  // Manipulador de upload do logótipo (via Supabase Storage)
   const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -174,10 +180,15 @@ export const EventFormPage: React.FC<EventFormPageProps> = ({
     setUploadingLogo(true);
     setErrorMessage(null);
     try {
-      const dataUrl = await processImageFile(file, 500, 500, 0.92);
-      setLogoUrl(dataUrl);
+      const res = await eventService.uploadEventImage(file);
+      if (res.success && res.url) {
+        setLogoUrl(res.url);
+      } else {
+        const dataUrl = await processImageFile(file, 500, 500, 0.92);
+        setLogoUrl(dataUrl);
+      }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Falha ao processar o ficheiro do logótipo.');
+      setErrorMessage(err.message || 'Falha ao processar e carregar o logótipo.');
     } finally {
       setUploadingLogo(false);
       if (e.target) e.target.value = '';

@@ -28,6 +28,9 @@ import {
 import { AppRoute, EventModel, UserProfile, PlatformMetrics, AdminAuditLog } from '../types';
 import { StatusBadge } from '../components/common/Badge';
 import { eventService } from '../services/eventService';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend 
+} from 'recharts';
 
 interface AdminPageProps {
   currentUser: UserProfile | null;
@@ -531,6 +534,66 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                 </span>
                 <p className="text-2xl font-bold text-slate-900">{metrics?.totalValidated || 0}</p>
                 <p className="text-[11px] text-slate-400 mt-1">Check-in na portaria</p>
+              </div>
+            </div>
+
+            {/* Dashboard: Volume de Inscrições por Evento */}
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-indigo-600" />
+                    <span>Volume de Inscrições e Validações por Evento</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Comparativo entre participantes inscritos e check-ins validados em cada evento da plataforma
+                  </p>
+                </div>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100">
+                  {events.length} Eventos Ativos
+                </span>
+              </div>
+
+              <div className="h-80 w-full pt-4">
+                {events.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-slate-400 text-xs">
+                    Nenhum evento registado para exibir no gráfico.
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={events.map(e => ({
+                        name: e.title.length > 22 ? e.title.substring(0, 22) + '...' : e.title,
+                        fullTitle: e.title,
+                        Inscritos: e.registered_count || 0,
+                        Validados: e.validated_count || 0,
+                      }))}
+                      margin={{ top: 10, right: 30, left: 0, bottom: 40 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis 
+                        dataKey="name" 
+                        angle={-20} 
+                        textAnchor="end" 
+                        tick={{ fontSize: 11, fill: '#64748b' }} 
+                        interval={0}
+                        height={50}
+                      />
+                      <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        formatter={(value: any, name: any) => [
+                          `${value} participantes`, 
+                          name === 'Inscritos' ? 'Total Inscritos' : 'Check-ins Validados'
+                        ]}
+                        labelFormatter={(label, payload) => payload?.[0]?.payload?.fullTitle || label}
+                      />
+                      <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '12px' }} />
+                      <Bar dataKey="Inscritos" fill="#4f46e5" radius={[4, 4, 0, 0]} name="Inscritos" />
+                      <Bar dataKey="Validados" fill="#10b981" radius={[4, 4, 0, 0]} name="Validados" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </div>
 
