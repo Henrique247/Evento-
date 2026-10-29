@@ -1,0 +1,7 @@
+{
+  "name": "EventFlow - Gestão de Eventos",
+  "description": "Plataforma SaaS moderna para gestão de eventos, inscrições, credenciamento e bilhética para organizações.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

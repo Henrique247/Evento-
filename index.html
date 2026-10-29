@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="pt">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function() {
+        // AI Studio Environment: HMR is disabled. Handle Vite WebSocket connection silently.
+        try {
+          var OrigWS = window.WebSocket;
+          if (OrigWS) {
+            function ViteWSMock(url, protocols) {
+              if (
+                protocols === 'vite-hmr' ||
+                protocols === 'vite-ping' ||
+                (typeof url === 'string' && (url.indexOf('vite') !== -1 || url.indexOf('24678') !== -1 || url.indexOf('/@vite') !== -1))
+              ) {
+                var target = new EventTarget();
+                target.readyState = 1;
+                target.url = url;
+                target.protocol = protocols || '';
+                target.send = function() {};
+                target.close = function() {};
+                setTimeout(function() {
+                  target.dispatchEvent(new Event('open'));
+                }, 0);
+                return target;
+              }
+              return new OrigWS(url, protocols);
+            }
+            ViteWSMock.prototype = OrigWS.prototype;
+            ViteWSMock.CONNECTING = 0;
+            ViteWSMock.OPEN = 1;
+            ViteWSMock.CLOSING = 2;
+            ViteWSMock.CLOSED = 3;
+            window.WebSocket = ViteWSMock;
+          }
+        } catch (e) {}
+
+        window.addEventListener('unhandledrejection', function(event) {
+          var reason = event.reason;
+          var msg = (reason && reason.message) || String(reason || '');
+          var stack = (reason && reason.stack) || '';
+          if (
+            msg.indexOf('WebSocket') !== -1 ||
+            msg.indexOf('vite') !== -1 ||
+            stack.indexOf('@vite/client') !== -1
+          ) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          }
+        }, true);
+
+        window.addEventListener('error', function(event) {
+          var filename = event.filename || '';
+          var msg = event.message || '';
+          if (
+            filename.indexOf('@vite/client') !== -1 ||
+            (typeof msg === 'string' && msg.indexOf('WebSocket') !== -1)
+          ) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          }
+        }, true);
+      })();
+    </script>
+    <title>EventFlow - Gestão de Eventos</title>
+    <meta name="description" content="Plataforma profissional de gestão de eventos, inscrições e credenciamento." />
+    <meta property="og:title" content="EventFlow - Gestão de Eventos" />
+    <meta property="og:description" content="Plataforma profissional de gestão de eventos, inscrições e credenciamento." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
